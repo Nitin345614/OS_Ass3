@@ -28,17 +28,11 @@ static ITEM buffer[BUFFER_SIZE];
 int in = 0;
 int out = 0;
 int count = 0;
+int cv = 0;
 
-//Producers call the mutex for the in pointer
-//The consumer calls the mutex for the out pointer
-//Normally, these pointers point to different entries in the buffer
-//So they don't overlap
-//Producers/Consumers call the mutex for the out pointer only if the in/out
-//pointer point to the same entry in the buffer
-//This case only happens when the buffer is empty or full
 pthread_mutex_t  in_mutex   = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t  out_mutex   = PTHREAD_MUTEX_INITIALIZER;
-
+pthread_cond_t  out_mutex   = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cv_mutex = PTHREAD_COND_INITIALIZER;
 
 static void rsleep (int t);	    // already implemented (see below)
 static ITEM get_next_item (void);   // already implemented (see below)
@@ -58,38 +52,41 @@ producer (void * arg)
     {
         // TODO: 
         // * get the new item
-        
-        //The flag is a local variable used for some misc logic
-        int flag = 0;
-        
+                
         ITEM curr_job = get_next_item();
 		
         rsleep (100);	// simulating all kind of activities...
 		
-		
 		pthread_mutex_lock(in_mutex);
-		pthread_mutex_lock(out_mutex);
 		
-		//If the in/out entires are not the same, then the producer
-		//allows the consumer to write to the buffer
-		//The pre-emptive locking of the out_mutex prevents the 
-		//consumer from modifying the buffer before it is determined
-		// to be safe
-		if((in-out)!=0)) {
-			pthread_mutex_unlock(out_mutex);
-			flag = flag + 1;
+		//The ascending jobs condition is enforced here
+		//Unlocking on the in_mutex allows other producers to unblock
+		//if the current one can't do anything		
+		while(cv<curr_job){
+			pthread_cond_wait (pthread_cond_t *cv_mutex, pthread_mutex_t *in_mutex);
 			}
 			
-			
+		//Once the current producer can do things, it blocks other
+		//producers
+		pthread_mutex_lock(in_mutex);
 		
+		buffer[in] = curr_job;
+		in = (in + 1)%BUFFER_SIZE;
+		count = count + 1;
 		
+		//The condition variable can be used like this
+		//The value of the condition variable is the same as the last
+		//job id put into the buffer
+		//The value of the condition variable is set to the negative
+		//of the latest job id if the buffer is full
+		cv = curr_job * (1 - 2*(count==BUFFER_SIZE));
+		
+		//Signals to consumer that new item has been added for
+		//consuming
+		pthread_cond_signal (pthread_cond_t *out_mutex);
 		
 		pthread_mutex_unlock(in_mutex);
-		//This if statement exists so that this thread can only signal 
-		//on the out_mutex once per loop
-		if(flag==0){
-			pthread_mutex_unlock(out_mutex);
-			}
+		
 		
 	// TODO:
 	      // * put the item into buffer[]
@@ -137,6 +134,7 @@ int main (void)
     // * wait until all threads are finished  
     
     pthread_t producer_threads[NROF_PRODUCERS];
+    pthread_t consumer_thread;
 	for (int i = 0; i < NROF_PRODUCERS; i++){
 		
 		// Allocate memory for arguments
@@ -150,6 +148,17 @@ int main (void)
 		pthread_create(&producer_threads[i], NULL, producer, (void*)args);
 		
 	}
+	
+	ProdArgs* args = malloc(sizeof(ProdArgs));
+	if (args == NULL) {
+			perror("Failed to allocate memory for thread arguments");
+			exit(EXIT_FAILURE);
+		}
+	args->m = side;
+	pthread_create(&consumer_thread, NULL, consumer, (void*)args);
+	
+	
+	
     
     return (0);
 }
