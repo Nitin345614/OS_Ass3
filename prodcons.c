@@ -46,7 +46,7 @@ producer ()
 {
 	ITEM curr_job = 0;
 	
-    while (fin==0)
+    while (true)
     {
         // TODO: 
         // * get the new item
@@ -163,7 +163,6 @@ consumer ()
         rsleep (100);		// simulating all kind of activities...
     }
     fprintf(stderr,"consumer2");
-    fin=1;
 	return (NULL);
 }
 
@@ -181,15 +180,21 @@ int main (void)
 	
 	pthread_create(&consumer_thread, NULL, consumer, NULL);
 	
-	int status = 1;
-	for (int i = 0; i < NROF_PRODUCERS+1; i++){
-		while(status==1) 
-		{
-			waitpid(-1, &status, WNOHANG);
-		}
-		status = 1;
-	}
+	//Waits for the consumer to terminate
+	//int status = -1;
+	//while(status==-1) 
+	//{
+	//	waitpid(consumer_thread, &status,WCONTINUED);
+	//}
+	
+	pthread_join (consumer_thread);
+	
 	fprintf(stderr,"main\n");
+	for (int i = 0; i < NROF_PRODUCERS; i++){
+		pthread_cancel(producer_threads[i]);
+	}
+	
+	
 	pthread_mutex_destroy(&in_mutex);
 	pthread_cond_destroy(&out_mutex);
 	pthread_cond_destroy(&cv_mutex);
