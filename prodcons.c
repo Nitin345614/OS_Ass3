@@ -33,11 +33,18 @@ int count = 0;
 static void rsleep (int t);	    // already implemented (see below)
 static ITEM get_next_item (void);   // already implemented (see below)
 
+struct ProdArgs{
+	pthread_mutex_t m;
+	
+	}
+
 
 /* producer thread */
 static void * 
 producer (void * arg)
 {
+	//Unpack args
+	
     while (true /* TODO: not all items produced */)
     {
         // TODO: 
@@ -91,6 +98,23 @@ int main (void)
     // TODO: 
     // * startup the producer threads and the consumer thread
     // * wait until all threads are finished  
+    
+    pthread_t producer_threads[NROF_PRODUCERS];
+	for (int i = 0; i < NROF_PRODUCERS; i++){
+		
+		// Allocate memory for arguments
+		ProdArgs* args = malloc(sizeof(ProdArgs));
+		if (args == NULL) {
+			perror("Failed to allocate memory for thread arguments");
+			exit(EXIT_FAILURE);
+		}
+		args->side = side;
+		args->direction = direction;
+		args->intersection_mutex = &m;
+		
+		pthread_create(&light_threads[side][direction], NULL, manage_light, (void*)args);
+		
+	}
     
     return (0);
 }
