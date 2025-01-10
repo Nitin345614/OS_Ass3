@@ -105,7 +105,7 @@ producer ()
         //
         // (see condition_test() in condition_basics.c how to use condition variables)
     }
-    fprintf(stderr,"producer2");
+    //fprintf(stderr,"producer2");
 	return (NULL);
 }
 
@@ -162,7 +162,7 @@ consumer ()
 		
         rsleep (100);		// simulating all kind of activities...
     }
-    fprintf(stderr,"consumer2");
+    //fprintf(stderr,"consumer2");
 	return (NULL);
 }
 
@@ -187,9 +187,9 @@ int main (void)
 	//	waitpid(consumer_thread, &status,WCONTINUED);
 	//}
 	
-	pthread_join (consumer_thread);
+	pthread_join (consumer_thread, NULL);
 	
-	fprintf(stderr,"main\n");
+	//fprintf(stderr,"main\n");
 	for (int i = 0; i < NROF_PRODUCERS; i++){
 		pthread_cancel(producer_threads[i]);
 	}
