@@ -18,6 +18,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
+#include <sys/wait.h>
+
 
 #include "prodcons.h"
 
@@ -31,7 +33,7 @@ int count = 0;
 int cv = 0;
 
 pthread_mutex_t  in_mutex   = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t  out_mutex   = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t  out_mutex   = PTHREAD_COND_INITIALIZER;
 pthread_cond_t cv_mutex = PTHREAD_COND_INITIALIZER;
 
 static void rsleep (int t);	    // already implemented (see below)
@@ -39,7 +41,7 @@ static ITEM get_next_item (void);   // already implemented (see below)
 
 /* producer thread */
 static void * 
-producer (void * arg)
+producer ()
 {
 	ITEM curr_job = 0;
 	
@@ -47,12 +49,14 @@ producer (void * arg)
     {
         // TODO: 
         // * get the new item
-                
+        
         ITEM curr_job = get_next_item();
 		
         rsleep (100);	// simulating all kind of activities...
 		
-		pthread_mutex_lock(in_mutex);
+		pthread_mutex_lock(&in_mutex);
+		
+		fprintf(stderr,"producer0: %d\n",cv);
 		
 		//The ascending jobs condition is enforced here
 		//Unlocking on the in_mutex allows other producers to unblock
@@ -60,13 +64,13 @@ producer (void * arg)
 		//if curr_job is lower than cv, the producers must wait the 
 		//consumer to consume the whole buffer
 		while(curr_job<cv){
-			pthread_cond_wait (pthread_cond_t *cv_mutex, pthread_mutex_t *in_mutex);
+			pthread_cond_wait (&cv_mutex, &in_mutex);
 			}
-			
+		fprintf(stderr,"producer1: %d\n",cv);	
 		//Once the current producer can do things, it blocks other
 		//producers
-		pthread_mutex_lock(in_mutex);
-		
+		pthread_mutex_lock(&in_mutex);
+		fprintf(stderr,"producer2: %d\n",cv);
 		//Put jobs into the buffer and update buffer trackers
 		buffer[in] = curr_job;
 		in = (in + 1)%BUFFER_SIZE;
@@ -81,9 +85,9 @@ producer (void * arg)
 		
 		//Signals to consumer that new item has been added for
 		//consuming
-		pthread_cond_signal (pthread_cond_t *out_mutex);
+		pthread_cond_signal (&out_mutex);
 		
-		pthread_mutex_unlock(in_mutex);
+		pthread_mutex_unlock(&in_mutex);
 		
 		
 	// TODO:
@@ -104,7 +108,7 @@ producer (void * arg)
 
 /* consumer thread */
 static void * 
-consumer (void * arg)
+consumer ()
 {
 	ITEM curr_job = 0;
     while (curr_job<NROF_ITEMS)
@@ -114,19 +118,26 @@ consumer (void * arg)
 	      // * print the number to stdout
         //
         
-        pthread_mutex_lock(in_mutex);
+        pthread_mutex_lock(&in_mutex);
+        
+        fprintf(stderr,"consumer0: %d\n",cv);
         
         //If the buffer is empty, the consumer thread waits for 
         //the out mutex (so for producers to signal completion)
         //while releasing the in_mutex (so allowing producers to unblock)
         while(count==0){
-			pthread_cond_wait (pthread_cond_t *out_mutex, pthread_mutex_t *in_mutex);
+			pthread_cond_wait (&out_mutex, &in_mutex);
 			}
+		
+		fprintf(stderr,"consumer1: %d\n",cv);
         
-        pthread_mutex_lock(in_mutex);
+        pthread_mutex_lock(&in_mutex);
+        
+        fprintf(stderr,"consumer2: %d\n",cv);
 		
 		//Put jobs into the buffer and update buffer trackers
 		curr_job = buffer[in];
+		printf("%d\n", curr_job);
 		out = (out + 1)%BUFFER_SIZE;
 		count = count - 1;
 		
@@ -134,9 +145,9 @@ consumer (void * arg)
 		cv = cv*(count>0);
 		
 		//Signal to producers to try again
-		pthread_cond_signal (pthread_cond_t *cv_mutex);
+		pthread_cond_signal (&cv_mutex);
         
-        pthread_mutex_unlock(in_mutex);
+        pthread_mutex_unlock(&in_mutex);
         
         // follow this pseudocode (according to the ConditionSynchronization lecture):
         //      mutex-lock;
@@ -163,16 +174,18 @@ int main (void)
 		pthread_create(&producer_threads[i], NULL, producer, NULL);
 	}
 	
-	ProdArgs* args = malloc(sizeof(ProdArgs));
-	if (args == NULL) {
-			perror("Failed to allocate memory for thread arguments");
-			exit(EXIT_FAILURE);
-		}
-	args->m = side;
-	pthread_create(&consumer_thread, NULL, consumer, (void*)args);
+	pthread_create(&consumer_thread, NULL, consumer, NULL);
 	
 	
 	
+	int status = 0;
+	for (int i = 0; i < NROF_PRODUCERS+1; i++){
+		wait(&status);
+	}
+	
+	pthread_mutex_destroy(&in_mutex);
+	pthread_cond_destroy(&out_mutex);
+	pthread_cond_destroy(&cv_mutex);
     
     return (0);
 }
