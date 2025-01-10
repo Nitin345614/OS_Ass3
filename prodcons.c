@@ -18,8 +18,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
-#include <sys/wait.h>
-
 
 #include "prodcons.h"
 
@@ -44,7 +42,6 @@ static ITEM get_next_item (void);   // already implemented (see below)
 static void * 
 producer ()
 {
-	ITEM curr_job = 0;
 	
     while (true)
     {
@@ -58,17 +55,17 @@ producer ()
 		
 		pthread_mutex_lock(&in_mutex);
 		
-		
+		//fprintf(stderr,"producer1: %d   %d\n",cv, curr_job);
 		
 		//The ascending jobs condition is enforced here
 		//Unlocking on the in_mutex allows other producers to unblock
 		//if the current one can't do anything	
 		//if curr_job is lower than cv, the producers must wait the 
 		//consumer to consume the whole buffer
-		while(curr_job<cv){
+		while(curr_job!=cv){
 			pthread_cond_wait (&cv_mutex, &in_mutex);
 			}
-		//fprintf(stderr,"producer1: %d\n",curr_job);	
+		//fprintf(stderr,"producer2: %d\n",curr_job);	
 		//Once the current producer can do things, it blocks other
 		//producers
 		//pthread_mutex_lock(&in_mutex);
@@ -80,10 +77,11 @@ producer ()
 		
 		//The condition variable can be used like this
 		//The value of the condition variable is the same as the last
-		//job id put into the buffer
+		//job id put into the buffer + 1
 		//The value of the condition variable is set to the negative
 		//of the latest job id if the buffer is full
-		cv = curr_job * (1 - 2*(count==BUFFER_SIZE));
+		
+		cv = (curr_job+1) * (1 - 2*(count==BUFFER_SIZE));
 		
 		//Signals to consumer that new item has been added for
 		//consuming
@@ -124,6 +122,8 @@ consumer ()
         
         pthread_mutex_lock(&in_mutex);
         
+        //fprintf(stderr,"consumer2: %d   %d\n",cv,count);
+        
         //If the buffer is empty, the consumer thread waits for 
         //the out mutex (so for producers to signal completion)
         //while releasing the in_mutex (so allowing producers to unblock)
@@ -132,9 +132,7 @@ consumer ()
 			}
 		
         //pthread_mutex_lock(&in_mutex);
-        
-        //fprintf(stderr,"consumer2: %d\n",cv);
-		
+        		
 		//Put jobs into the buffer and update buffer trackers
 		curr_job = buffer[out];
 		printf("%d\n", curr_job);
@@ -145,11 +143,11 @@ consumer ()
 		//If cv was negative (full buffer)
 		//make it positve again (there is now space
 		//in buffer)
-		cv = cv*(count>0)*(1 - 2*(cv<0));
+		cv = cv*(1 - 2*(cv<0));
 		
 		//Signal to producers to try again
-		pthread_cond_signal (&cv_mutex);
-        
+		pthread_cond_broadcast (&cv_mutex);
+
         pthread_mutex_unlock(&in_mutex);
         
         // follow this pseudocode (according to the ConditionSynchronization lecture):
@@ -179,13 +177,6 @@ int main (void)
 	}
 	
 	pthread_create(&consumer_thread, NULL, consumer, NULL);
-	
-	//Waits for the consumer to terminate
-	//int status = -1;
-	//while(status==-1) 
-	//{
-	//	waitpid(consumer_thread, &status,WCONTINUED);
-	//}
 	
 	pthread_join (consumer_thread, NULL);
 	
