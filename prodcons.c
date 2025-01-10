@@ -29,12 +29,21 @@ int in = 0;
 int out = 0;
 int count = 0;
 
+//Producers call the mutex for the in pointer
+//The consumer calls the mutex for the out pointer
+//Normally, these pointers point to different entries in the buffer
+//So they don't overlap
+//Producers/Consumers call the mutex for the out pointer only if the in/out
+//pointer point to the same entry in the buffer
+//This case only happens when the buffer is empty or full
+pthread_mutex_t  in_mutex   = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t  out_mutex   = PTHREAD_MUTEX_INITIALIZER;
+
 
 static void rsleep (int t);	    // already implemented (see below)
 static ITEM get_next_item (void);   // already implemented (see below)
 
 struct ProdArgs{
-	pthread_mutex_t m;
 	
 	}
 
@@ -50,9 +59,37 @@ producer (void * arg)
         // TODO: 
         // * get the new item
         
+        //The flag is a local variable used for some misc logic
+        int flag = 0;
+        
         ITEM curr_job = get_next_item();
 		
         rsleep (100);	// simulating all kind of activities...
+		
+		
+		pthread_mutex_lock(in_mutex);
+		pthread_mutex_lock(out_mutex);
+		
+		//If the in/out entires are not the same, then the producer
+		//allows the consumer to write to the buffer
+		//The pre-emptive locking of the out_mutex prevents the 
+		//consumer from modifying the buffer before it is determined
+		// to be safe
+		if((in-out)!=0)) {
+			pthread_mutex_unlock(out_mutex);
+			flag = flag + 1;
+			}
+			
+			
+		
+		
+		
+		pthread_mutex_unlock(in_mutex);
+		//This if statement exists so that this thread can only signal 
+		//on the out_mutex once per loop
+		if(flag==0){
+			pthread_mutex_unlock(out_mutex);
+			}
 		
 	// TODO:
 	      // * put the item into buffer[]
@@ -108,11 +145,9 @@ int main (void)
 			perror("Failed to allocate memory for thread arguments");
 			exit(EXIT_FAILURE);
 		}
-		args->side = side;
-		args->direction = direction;
-		args->intersection_mutex = &m;
+		args->m = side;
 		
-		pthread_create(&light_threads[side][direction], NULL, manage_light, (void*)args);
+		pthread_create(&producer_threads[i], NULL, producer, (void*)args);
 		
 	}
     
