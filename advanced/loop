@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#MODIFY prodcons.c TO ONLY PRINT NUMBER OF SIGNALS BEFORE USING THIS SCRIPT
+
 sum=0
 num=0
 loops=100
