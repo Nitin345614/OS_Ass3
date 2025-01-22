@@ -38,6 +38,10 @@ pthread_cond_t cv_mutex = PTHREAD_COND_INITIALIZER;
 static void rsleep (int t);	    // already implemented (see below)
 static ITEM get_next_item (void);   // already implemented (see below)
 
+//For keeping track of signals and broadcasts
+static int signal_count = 0;
+static int broadcast_count = 0;
+
 /* producer thread */
 static void * 
 producer ()
@@ -87,7 +91,8 @@ producer ()
 		//Signals to consumer that new item has been added for
 		//consuming
 		pthread_cond_signal (&out_mutex);
-		
+		signal_count++;
+	    
 		pthread_mutex_unlock(&in_mutex);
 		
 		
@@ -134,22 +139,22 @@ consumer ()
 		
         //pthread_mutex_lock(&in_mutex);
         		
-		//Put jobs into the buffer and update buffer trackers
-		curr_job = buffer[out];
-		if(curr_job==NROF_ITEMS) break;
-		printf("%d\n", curr_job);
-		out = (out + 1)%BUFFER_SIZE;
-		count = count - 1;
-		
-		//If buffer has been emptied, reset cv
-		//If cv was negative (full buffer)
-		//make it positve again (there is now space
-		//in buffer)
-		cv = cv*(1 - 2*(cv<0));
-		
-		//Signal to producers to try again
-		pthread_cond_broadcast (&cv_mutex);
-
+	//Put jobs into the buffer and update buffer trackers
+	curr_job = buffer[out];
+	if(curr_job==NROF_ITEMS) break;
+	printf("%d\n", curr_job);
+	out = (out + 1)%BUFFER_SIZE;
+	count = count - 1;
+	
+	//If buffer has been emptied, reset cv
+	//If cv was negative (full buffer)
+	//make it positve again (there is now space
+	//in buffer)
+	cv = cv*(1 - 2*(cv<0));
+	
+	//Signal to producers to try again
+	pthread_cond_broadcast (&cv_mutex);
+	broadcast_count++;
         pthread_mutex_unlock(&in_mutex);
         
         // follow this pseudocode (according to the ConditionSynchronization lecture):
@@ -172,8 +177,8 @@ int main (void)
     // * startup the producer threads and the consumer thread
     // * wait until all threads are finished  
     
-    pthread_t producer_threads[NROF_PRODUCERS];
-    pthread_t consumer_thread;
+    	pthread_t producer_threads[NROF_PRODUCERS];
+   	pthread_t consumer_thread;
 	for (int i = 0; i < NROF_PRODUCERS; i++){
 		pthread_create(&producer_threads[i], NULL, producer, NULL);
 	}
@@ -187,12 +192,13 @@ int main (void)
 		pthread_cancel(producer_threads[i]);
 	}
 	
-	
 	pthread_mutex_destroy(&in_mutex);
 	pthread_cond_destroy(&out_mutex);
 	pthread_cond_destroy(&cv_mutex);
-    
-    return (0);
+	
+    	fprintf(stderr,"Signals: %d \nBroadcasts: %d \n",signal_count, broadcast_count);
+	
+    	return (0);
 }
 
 /*
