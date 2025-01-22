@@ -1,0 +1,13 @@
+#!/bin/bash
+
+sum=0
+num=0
+loops=100
+
+for ((i=0; i<=$loops; i++)); do
+	num=$(./prodcons)
+	num=$(python -c "print($num/$loops)")
+	sum=$(python -c "print($sum+$num)")
+done
+
+python -c "print($sum)"
