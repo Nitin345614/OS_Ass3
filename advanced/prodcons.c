@@ -124,7 +124,7 @@ int main(void)
     for (int i = 0; i < NROF_PRODUCERS; i++) {
         pthread_cond_destroy(&cond_producer[i]);
     }
-
+    fprintf(stderr,"Signals: %d \nBroadcasts: %d \n",signal_count, broadcast_count);
     return 0;
 }
 
