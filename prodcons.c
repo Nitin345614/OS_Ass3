@@ -1,13 +1,7 @@
 /* 
- * Operating Systems  (2INC0)  Practical Assignment.
- * Condition Variables Application.
- *
- * STUDENT_NAME_1 (STUDENT_NR_1)
- * STUDENT_NAME_2 (STUDENT_NR_2)
- *
- * Grading:
- * Students who hand in clean code that fully satisfies the minimum requirements will get an 8. 
- * Extra steps can lead to higher marks because we want students to take the initiative.
+ * Nitin Singhal 
+ * Ben Litchting 
+ * Daniel Tyukov 
  */
  
 #include <stdio.h>
@@ -29,7 +23,6 @@ int in = 0;
 int out = 0;
 int count = 0;
 int cv = 0;
-int fin = 0;
 
 pthread_mutex_t  in_mutex   = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t  out_mutex   = PTHREAD_COND_INITIALIZER;
@@ -46,40 +39,27 @@ static int broadcast_count = 0;
 static void * 
 producer ()
 {
-	
-    while (true)
-    {
-        // TODO: 
-        // * get the new item
-        
-        ITEM curr_job = get_next_item();
-        //if(curr_job==2000) break;
-		//fprintf(stderr,"producer0: %d\n",curr_job);
+	while (true)
+    	{
+        	ITEM curr_job = get_next_item();
 		
-        rsleep (100);	// simulating all kind of activities...
+        	rsleep (100);	// simulating all kind of activities...
 		
 		pthread_mutex_lock(&in_mutex);
-		
-		//fprintf(stderr,"producer1: %d   %d\n",cv, curr_job);
-		
+	    
 		//The ascending jobs condition is enforced here
-		//Unlocking on the in_mutex allows other producers to unblock
-		//if the current one can't do anything	
-		//if curr_job is lower than cv, the producers must wait the 
-		//consumer to consume the whole buffer
-		while(curr_job!=cv){
+		//Unlocking on the in_mutex allows other producers to unblock if the current one can't do anything	
+		while(curr_job!=cv)
+		{
 			pthread_cond_wait (&cv_mutex, &in_mutex);
-			}
-		//fprintf(stderr,"producer2: %d\n",curr_job);	
-		//Once the current producer can do things, it blocks other
-		//producers
-		//pthread_mutex_lock(&in_mutex);
-		//fprintf(stderr,"producer2: %d\n",cv);
+		}
+		//Once the current producer can do things, it blocks other producers
+	
 		//Put jobs into the buffer and update buffer trackers
 		buffer[in] = curr_job;
 		in = (in + 1)%BUFFER_SIZE;
 		count = count + 1;
-		
+	    
 		//The condition variable can be used like this
 		//The value of the condition variable is the same as the last
 		//job id put into the buffer + 1
@@ -88,28 +68,12 @@ producer ()
 		
 		cv = (curr_job+1) * (1 - 2*(count==BUFFER_SIZE));
 		
-		//Signals to consumer that new item has been added for
-		//consuming
+		//Signals to consumer that new item has been added for consuming
 		pthread_cond_signal (&out_mutex);
 		signal_count++;
-	    
+	
 		pthread_mutex_unlock(&in_mutex);
-		
-		
-	// TODO:
-	      // * put the item into buffer[]
-	//
-        // follow this pseudocode (according to the ConditionSynchronization lecture):
-        //      mutex-lock;
-        //      while not condition-for-this-producer
-        //          wait-cv;
-        //      critical-section;
-        //      possible-cv-signals;
-        //      mutex-unlock;
-        //
-        // (see condition_test() in condition_basics.c how to use condition variables)
-    }
-    //fprintf(stderr,"producer2");
+	}
 	return (NULL);
 }
 
@@ -118,68 +82,46 @@ static void *
 consumer ()
 {
 	ITEM curr_job = 0;
-    while (curr_job<NROF_ITEMS)
-    {
-		//fprintf(stderr,"consumer0: %d\n",curr_job);
-        // TODO: 
-	      // * get the next item from buffer[]
-	      // * print the number to stdout
-        //
+   	while (curr_job<NROF_ITEMS)
+    	{
+        	pthread_mutex_lock(&in_mutex);
         
-        pthread_mutex_lock(&in_mutex);
-        
-        //fprintf(stderr,"consumer2: %d   %d\n",cv,count);
-        
-        //If the buffer is empty, the consumer thread waits for 
-        //the out mutex (so for producers to signal completion)
-        //while releasing the in_mutex (so allowing producers to unblock)
-        while(count==0){
+        	//If the buffer is empty, the consumer thread waits for 
+        	//the out mutex (so for producers to signal completion)
+        	//while releasing the in_mutex (so allowing producers to unblock)
+        	while(count==0)
+		{
 			pthread_cond_wait (&out_mutex, &in_mutex);
-			}
+		}
 		
-        //pthread_mutex_lock(&in_mutex);
-        		
-	//Put jobs into the buffer and update buffer trackers
-	curr_job = buffer[out];
-	if(curr_job==NROF_ITEMS) break;
-	printf("%d\n", curr_job);
-	out = (out + 1)%BUFFER_SIZE;
-	count = count - 1;
+        	//Put jobs into the buffer and update buffer trackers
+		curr_job = buffer[out];
+		if(curr_job==NROF_ITEMS) break;
+		printf("%d\n", curr_job);
+		out = (out + 1)%BUFFER_SIZE;
+		count = count - 1;
 	
-	//If buffer has been emptied, reset cv
-	//If cv was negative (full buffer)
-	//make it positve again (there is now space
-	//in buffer)
-	cv = cv*(1 - 2*(cv<0));
+		//If cv was negative (full buffer)
+		//make it positve again (there is now space
+		//in buffer)
+		cv = cv*(1 - 2*(cv<0));
 	
-	//Signal to producers to try again
-	pthread_cond_broadcast (&cv_mutex);
-	broadcast_count++;
-        pthread_mutex_unlock(&in_mutex);
-        
-        // follow this pseudocode (according to the ConditionSynchronization lecture):
-        //      mutex-lock;
-        //      while not condition-for-this-consumer
-        //          wait-cv;
-        //      critical-section;
-        //      possible-cv-signals;
-        //      mutex-unlock;
+		//Signal to producers to try again
+		pthread_cond_broadcast (&cv_mutex);
+		broadcast_count++;
+		pthread_mutex_unlock(&in_mutex);	
 		
-        rsleep (100);		// simulating all kind of activities...
-    }
-    //fprintf(stderr,"consumer2");
+        	rsleep (100);		// simulating all kind of activities...
+	}
 	return (NULL);
 }
 
 int main (void)
 {
-    // TODO: 
-    // * startup the producer threads and the consumer thread
-    // * wait until all threads are finished  
-    
-    	pthread_t producer_threads[NROF_PRODUCERS];
+	pthread_t producer_threads[NROF_PRODUCERS];
    	pthread_t consumer_thread;
-	for (int i = 0; i < NROF_PRODUCERS; i++){
+	for (int i = 0; i < NROF_PRODUCERS; i++)
+	{
 		pthread_create(&producer_threads[i], NULL, producer, NULL);
 	}
 	
@@ -187,8 +129,8 @@ int main (void)
 	
 	pthread_join (consumer_thread, NULL);
 	
-	//fprintf(stderr,"main\n");
-	for (int i = 0; i < NROF_PRODUCERS; i++){
+	for (int i = 0; i < NROF_PRODUCERS; i++)
+	{
 		pthread_cancel(producer_threads[i]);
 	}
 	
