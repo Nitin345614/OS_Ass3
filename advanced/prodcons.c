@@ -86,7 +86,8 @@ int main(void)
     pthread_t cons_thread_id;
 
     // Initialize per-producer condition variables
-    for (int i = 0; i < NROF_PRODUCERS; i++) {
+    for (int i = 0; i < NROF_PRODUCERS; i++) 
+    {
         pthread_cond_init(&cond_producer[i], NULL);
         // the default placeholder basically..
         producer_items[i]     = NROF_ITEMS;
@@ -96,7 +97,8 @@ int main(void)
 
     // Create producer threads
     // We'll pass each producer its own ID (0..NROF_PRODUCERS-1)
-    for (int i = 0; i < NROF_PRODUCERS; i++) {
+    for (int i = 0; i < NROF_PRODUCERS; i++) 
+    {
         int *id = malloc(sizeof(int));
         *id = i;
         pthread_create(&prod_thread_id[i], NULL, producer, id);
@@ -112,7 +114,8 @@ int main(void)
     // The producers might still be blocked waiting for next_to_produce
     // or waiting for get_next_item() returning NROF_ITEMS. We should
     // cancel them or join them after they've discovered they have no more items.
-    for (int i = 0; i < NROF_PRODUCERS; i++) {
+    for (int i = 0; i < NROF_PRODUCERS; i++) 
+    {
         pthread_cancel(prod_thread_id[i]);
         pthread_join(prod_thread_id[i], NULL);
     }
@@ -151,7 +154,8 @@ static void *producer(void *arg)
     {
         // 1) get next item
         ITEM new_item = get_next_item();
-        if (new_item == NROF_ITEMS) {
+        if (new_item == NROF_ITEMS) 
+        {
             // no more real items => we're done
             pthread_mutex_lock(&mutex_global);
             producer_done[my_id] = true;
@@ -170,13 +174,15 @@ static void *producer(void *arg)
         pthread_mutex_lock(&mutex_global);
 
         // Wait until this is indeed the next item needed (avoid broadcast)
-        while ((int)producer_items[my_id] != next_to_produce) {
+        while ((int)producer_items[my_id] != next_to_produce) 
+        {
             // Wait on my own condition variable
             pthread_cond_wait(&cond_producer[my_id], &mutex_global);
         }
 
         // Now wait if the buffer is full
-        while (count == BUFFER_SIZE) {
+        while (count == BUFFER_SIZE) 
+        {
             pthread_cond_wait(&cond_not_full, &mutex_global);
         }
 
@@ -188,7 +194,8 @@ static void *producer(void *arg)
         producer_has_item[my_id] = false;
 
         // Let consumer know there is something in the buffer
-        if (count == 1) {
+        if (count == 1) 
+        {
             // buffer was empty, so consumer must be woken
             signal_count++;
             pthread_cond_signal(&cond_not_empty);
@@ -200,9 +207,10 @@ static void *producer(void *arg)
         // Now wake up whichever producer has the next item (if any)
         // Because exactly one item is 'next', we only need to wake exactly one
         // We find a producer j that is holding that item
-        for (int j = 0; j < NROF_PRODUCERS; j++) {
-            if (producer_has_item[j] &&
-                producer_items[j] == next_to_produce) {
+        for (int j = 0; j < NROF_PRODUCERS; j++) 
+        {
+            if (producer_has_item[j] && producer_items[j] == next_to_produce) 
+            {
                 // signal exactly that producer j
                 signal_count++;
                 pthread_cond_signal(&cond_producer[j]);
@@ -237,7 +245,8 @@ static void *consumer(void *arg)
     {
         pthread_mutex_lock(&mutex_global);
 
-        while (count == 0) {
+        while (count == 0) 
+        {
             pthread_cond_wait(&cond_not_empty, &mutex_global);
         }
 
@@ -247,7 +256,8 @@ static void *consumer(void *arg)
         count--;
 
         // let producers know there's space
-        if (count == BUFFER_SIZE - 1) {
+        if (count == BUFFER_SIZE - 1) 
+        {
             // buffer was full, now there's space for at least one
             signal_count++;
             pthread_cond_signal(&cond_not_full);
@@ -259,7 +269,8 @@ static void *consumer(void *arg)
         pthread_mutex_unlock(&mutex_global);
 
         // only printing the real items
-        if (item < NROF_ITEMS) {
+        if (item < NROF_ITEMS) 
+        {
             printf("%d\n", item);
         }
 
@@ -267,7 +278,8 @@ static void *consumer(void *arg)
         rsleep(100);
 
         // if we've consumed the total # of real items, we can stop
-        if (items_consumed >= NROF_ITEMS) {
+        if (items_consumed >= NROF_ITEMS) 
+        {
             break;
         }
     }
