@@ -128,6 +128,8 @@ int main(void)
         pthread_cond_destroy(&cond_producer[i]);
     }
     fprintf(stderr,"Signals: %d \nBroadcasts: %d \n",signal_count, broadcast_count);
+    //printf("%d",signal_count);    For using the bash loop script, uncomment this, and comment out 
+    //the printf statement in the consumer thread
     return 0;
 }
 
