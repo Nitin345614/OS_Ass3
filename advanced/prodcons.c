@@ -1,26 +1,28 @@
-/* 
+/*
  * Operating Systems  (2INC0)  Practical Assignment.
- * Condition Variables Application -- Advanced (no unnecessary broadcasts).
+ * Condition Variables Application.
  *
  * Nitin Singhal (1725963)
  * Daniel Tyukov (1819283)
- * Ben Lentschig (1824805)  
+ * Ben Lentschig (1824805)
  *
+ * Grading:
+ * Students who hand in clean code that fully satisfies the minimum requirements will get an 8.
+ * Extra steps can lead to higher marks because we want students to take the initiative.
  */
 
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <string.h>  
+#include <string.h>
 #include <unistd.h>
-#include <errno.h>
 #include <pthread.h>
 #include <time.h>
 
 #include "prodcons.h"
 
-/* 
+/*
  * Global circular buffer plus bookkeeping
  */
 static ITEM buffer[BUFFER_SIZE];
@@ -38,7 +40,7 @@ static int  count= 0;
 static int  next_to_produce = 0;
 
 /*
- * We will keep track of how many items are consumed so the consumer 
+ * We will keep track of how many items are consumed so the consumer
  * knows when to stop.
  */
 static int  items_consumed = 0;
@@ -58,7 +60,7 @@ static bool producer_done[NROF_PRODUCERS];
  *   - mutex_global: Protects all shared state (buffer, next_to_produce, etc.)
  *   - cond_not_full: for producers to wait if buffer is full
  *   - cond_not_empty: for consumer to wait if buffer is empty
- *   - cond_producer[i]: for producer i to wait if it cannot yet produce 
+ *   - cond_producer[i]: for producer i to wait if it cannot yet produce
  *                       (i.e., it does not hold the next item needed in ascending order)
  */
 static pthread_mutex_t mutex_global       = PTHREAD_MUTEX_INITIALIZER;
@@ -126,7 +128,7 @@ int main(void)
     return 0;
 }
 
-/* ------------------------------------------------------------------------
+/*
  * producer()
  *
  * Each producer repeatedly:
@@ -135,7 +137,7 @@ int main(void)
  *  - otherwise, sleep a little (simulate fetching)
  *  - wait until 'my item' == next_to_produce
  *  - wait until buffer not full
- *  - produce into buffer, increment next_to_produce, 
+ *  - produce into buffer, increment next_to_produce,
  *  - signal consumer if buffer was empty
  *  - signal the one producer that holds the next item (if any)
  */
@@ -145,7 +147,7 @@ static void *producer(void *arg)
     // finished with allocated id
     free(arg);
 
-    while (true) 
+    while (true)
     {
         // 1) get next item
         ITEM new_item = get_next_item();
@@ -217,7 +219,7 @@ static void *producer(void *arg)
     return NULL;
 }
 
-/* ------------------------------------------------------------------------
+/*
  * consumer()
  *
  * The consumer repeatedly:
@@ -273,7 +275,7 @@ static void *consumer(void *arg)
     return NULL;
 }
 
-/* ------------------------------------------------------------------------
+/*
  * rsleep(int t)
  *
  * Suspends the calling thread for a random amount of time between
@@ -290,7 +292,7 @@ static void rsleep(int t)
     usleep(random() % t);
 }
 
-/* ------------------------------------------------------------------------
+/*
  * get_next_item()
  *
  * Thread-safe function to get a next job to be executed.
@@ -311,7 +313,7 @@ static ITEM get_next_item(void)
     counter++;
     if (counter > NROF_ITEMS) {
         // all items already handed out
-        found = NROF_ITEMS; 
+        found = NROF_ITEMS;
     } else {
         if (counter < NROF_PRODUCERS) {
             // for the first n-1 items: any job can be given
