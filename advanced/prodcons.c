@@ -6,9 +6,6 @@
  * Daniel Tyukov (1819283)
  * Ben Lentschig (1824805)  
  *
- * For the advanced assignment (3b):
- *  - We avoid broadcast() calls where a single signal() suffices.
- *  - We track the number of signal/broadcast calls and print them.
  */
 
 #include <stdio.h>
